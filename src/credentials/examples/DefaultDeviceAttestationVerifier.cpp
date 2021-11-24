@@ -257,9 +257,10 @@ AttestationVerificationResult DefaultDACVerifier::VerifyAttestationInformation(c
     VerifyOrReturnError(GetProductAttestationAuthorityCert(akid, paa) == CHIP_NO_ERROR,
                         AttestationVerificationResult::kPaaNotFound);
 
-    VerifyOrReturnError(IsCertificateTimestampValid(CertificateValidityType::kNotBefore, dacCertDerBuffer, paiCertDerBuffer) == CHIP_NO_ERROR &&
-                            IsCertificateTimestampValid(CertificateValidityType::kNotAfter, dacCertDerBuffer, paiCertDerBuffer) == CHIP_NO_ERROR,
-                        AttestationVerificationResult::kPaiExpired);
+    VerifyOrReturnError(
+        IsCertificateTimestampValid(CertificateValidityType::kNotBefore, dacCertDerBuffer, paiCertDerBuffer) == CHIP_NO_ERROR &&
+            IsCertificateTimestampValid(CertificateValidityType::kNotAfter, dacCertDerBuffer, paiCertDerBuffer) == CHIP_NO_ERROR,
+        AttestationVerificationResult::kPaiExpired);
 
     VerifyOrReturnError(IsCertificateTimestampValid(CertificateValidityType::kNotBefore, dacCertDerBuffer, paa) == CHIP_NO_ERROR &&
                             IsCertificateTimestampValid(CertificateValidityType::kNotAfter, dacCertDerBuffer, paa) == CHIP_NO_ERROR,
