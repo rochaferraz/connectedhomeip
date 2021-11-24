@@ -25,5 +25,4 @@ chip_data_model("tv-common") {
 
   # TODO: the definition of DYNAMIC_ENDPOINT_COUNT needs find a common home!
   cflags = [ "-DDYNAMIC_ENDPOINT_COUNT=16" ]
-
 }
