@@ -57,9 +57,20 @@ typedef struct
     EmberEventControl * control;
     /** The procedure to call when the event fires. */
     void (*handler)(uint8_t endpoint);
-    //void (*handler)(EmberEventControl* ctrl);
+    // void (*handler)(EmberEventControl* ctrl);
 } EmberEventData;
 
+// A function used to retrieve the proper NCP timer duration and unit based on a given
+// passed number of milliseconds.
+void emAfGetTimerDurationAndUnitFromMS(uint32_t durationMs, uint16_t * duration, EmberEventUnits * units);
+
+// A function (inverse of the above) to retrieve the number of milliseconds
+// represented by a given timer duration and unit.
+uint32_t emAfGetMSFromTimerDurationAndUnit(uint16_t duration, EmberEventUnits units);
+
+const char * emberAfGetEventString(uint8_t index);
+
+void emAfInitEvents(void);
 
 /** @brief Sets this ::EmberEventControl as inactive (no pending event).
  */
@@ -73,4 +84,4 @@ bool emberEventControlGetActive(EmberEventControl * control);
  */
 void emberEventControlSetActive(EmberEventControl * control);
 
-void MatterRegisterAfEvent(EmberEventData data, const char* eventString, EmberAfEventContext eventContext);
+void MatterRegisterAfEvent(EmberEventData data, const char * eventString, EmberAfEventContext eventContext);
