@@ -109,29 +109,6 @@ void EventControlHandler(chip::System::Layer * systemLayer, void * appState)
 // *****************************************************************************
 // Functions
 
-// A function used to initialize events for idling
-void emAfInitEvents(void) {}
-
-const char * emberAfGetEventString(uint8_t index)
-{
-    if (index == 0xFF)
-    {
-        return emAfStackEventString;
-    }
-
-    uint8_t iteratorCounter = 0;
-    for (auto & metaContext : eventMetaContexts)
-    {
-        if (iteratorCounter == index)
-        {
-            return metaContext.eventString;
-        }
-        iteratorCounter++;
-    }
-
-    return emAfStackEventString;
-}
-
 static EmberAfEventContext * findEventContext(EndpointId endpoint, ClusterId clusterId, bool isClient)
 {
     for (auto & metaContext : eventMetaContexts)
