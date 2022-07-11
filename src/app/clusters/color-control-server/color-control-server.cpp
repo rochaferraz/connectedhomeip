@@ -71,10 +71,10 @@ bool ColorControlServer::HasFeature(chip::EndpointId endpoint, ColorControlFeatu
 
 EmberAfStatus ColorControlServer::stopAllColorTransitions(EndpointId endpoint)
 {
-    EmberEventControl * event = getEventControl(endpoint);
-    VerifyOrReturnError(event != nullptr, EMBER_ZCL_STATUS_UNSUPPORTED_ENDPOINT);
+    DeviceLayer::SystemLayer().CancelTimer(colorControlServerTempTransitionEventHandler, reinterpret_cast<void *>(endpoint));
+    DeviceLayer::SystemLayer().CancelTimer(colorControlServerXyTransitionEventHandler, reinterpret_cast<void *>(endpoint));
+    DeviceLayer::SystemLayer().CancelTimer(colorControlServerHueSatTransitionEventHandler, reinterpret_cast<void *>(endpoint));
 
-    emberEventControlSetInactive(event);
     return EMBER_ZCL_STATUS_SUCCESS;
 }
 
@@ -254,24 +254,6 @@ uint16_t ColorControlServer::computeTransitionTimeFromStateAndRate(ColorControlS
     return (uint16_t) transitionTime;
 }
 
-/**
- * @brief event control object for an endpoint
- *
- * @param[in] endpoint
- * @return EmberEventControl*
- */
-EmberEventControl * ColorControlServer::getEventControl(EndpointId endpoint)
-{
-    uint16_t index            = emberAfFindClusterServerEndpointIndex(endpoint, ColorControl::Id);
-    EmberEventControl * event = nullptr;
-
-    if (index < ArraySize(eventControls))
-    {
-        event = &eventControls[index];
-    }
-    return event;
-}
-
 /** @brief Compute Pwm from HSV
  *
  * This function is called from the color server when it is time for the PWMs to
@@ -359,6 +341,14 @@ bool ColorControlServer::computeNewColor16uValue(ColorControlServer::Color16uTra
 }
 
 #ifdef EMBER_AF_PLUGIN_COLOR_CONTROL_SERVER_HSV
+
+/**
+ * Wrapper for HSV transition handler for use with Matter system layer timer
+ */
+static void colorControlServerHueSatTransitionEventHandler(System::Layer *, void * callbackContext)
+{
+    emberAfPluginColorControlServerHueSatTransitionEventHandler(static_cast<EndpointId>(reinterpret_cast<uintptr_t>(callbackContext)));
+}
 
 /**
  * @brief Returns ColorHueTransititionState associated to an endpoint
@@ -576,7 +566,8 @@ void ColorControlServer::startColorLoop(EndpointId endpoint, uint8_t startFromSt
 
     Attributes::RemainingTime::Set(endpoint, MAX_INT16U_VALUE);
 
-    emberEventControlSetDelayMS(configureHSVEventControl(endpoint), UPDATE_TIME_MS);
+    DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Milliseconds32(UPDATE_TIME_MS), colorControlServerHueSatTransitionEventHandler,
+                                              reinterpret_cast<void *>(endpoint));
 }
 
 /**
@@ -731,22 +722,6 @@ bool ColorControlServer::computeNewHueValue(ColorControlServer::ColorHueTransiti
 }
 
 /**
- * @brief Configures EnventControl callback when using HSV colors
- *
- * @param endpoint
- */
-EmberEventControl * ColorControlServer::configureHSVEventControl(EndpointId endpoint)
-{
-    EmberEventControl * controller = getEventControl(endpoint);
-    VerifyOrReturnError(controller != nullptr, nullptr);
-
-    controller->endpoint = endpoint;
-    controller->callback = &emberAfPluginColorControlServerHueSatTransitionEventHandler;
-
-    return controller;
-}
-
-/**
  * @brief Executes move Hue Command
  *
  * @param[in] endpoint
@@ -848,7 +823,8 @@ bool ColorControlServer::moveHueCommand(EndpointId endpoint, uint8_t moveMode, u
     colorSaturationTransitionState->stepsRemaining = 0;
 
     // kick off the state machine:
-    emberEventControlSetDelayMS(configureHSVEventControl(endpoint), UPDATE_TIME_MS);
+    DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Milliseconds32(UPDATE_TIME_MS), colorControlServerHueSatTransitionEventHandler,
+                                              reinterpret_cast<void *>(endpoint));
 
 exit:
     emberAfSendImmediateDefaultResponse(status);
@@ -986,7 +962,8 @@ bool ColorControlServer::moveToHueCommand(EndpointId endpoint, uint16_t hue, uin
     Attributes::RemainingTime::Set(endpoint, transitionTime);
 
     // kick off the state machine:
-    emberEventControlSetDelayMS(configureHSVEventControl(endpoint), UPDATE_TIME_MS);
+    DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Milliseconds32(UPDATE_TIME_MS), colorControlServerHueSatTransitionEventHandler,
+                                              reinterpret_cast<void *>(endpoint));
 
 exit:
     emberAfSendImmediateDefaultResponse(status);
@@ -1104,7 +1081,8 @@ bool ColorControlServer::moveToHueAndSaturationCommand(EndpointId endpoint, uint
     Attributes::RemainingTime::Set(endpoint, transitionTime);
 
     // kick off the state machine:
-    emberEventControlSetDelayMS(configureHSVEventControl(endpoint), UPDATE_TIME_MS);
+    DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Milliseconds32(UPDATE_TIME_MS), colorControlServerHueSatTransitionEventHandler,
+                                              reinterpret_cast<void *>(endpoint));
 
 exit:
     emberAfSendImmediateDefaultResponse(status);
@@ -1205,7 +1183,8 @@ bool ColorControlServer::stepHueCommand(EndpointId endpoint, uint8_t stepMode, u
     Attributes::RemainingTime::Set(endpoint, transitionTime);
 
     // kick off the state machine:
-    emberEventControlSetDelayMS(configureHSVEventControl(endpoint), UPDATE_TIME_MS);
+    DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Milliseconds32(UPDATE_TIME_MS), colorControlServerHueSatTransitionEventHandler,
+                                              reinterpret_cast<void *>(endpoint));
 
 exit:
     emberAfSendImmediateDefaultResponse(status);
@@ -1275,7 +1254,8 @@ bool ColorControlServer::moveSaturationCommand(const app::ConcreteCommandPath & 
     Attributes::RemainingTime::Set(endpoint, transitionTime);
 
     // kick off the state machine:
-    emberEventControlSetDelayMS(configureHSVEventControl(endpoint), UPDATE_TIME_MS);
+    DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Milliseconds32(UPDATE_TIME_MS), colorControlServerHueSatTransitionEventHandler,
+                                              reinterpret_cast<void *>(endpoint));
 
 exit:
     emberAfSendImmediateDefaultResponse(status);
@@ -1350,7 +1330,8 @@ bool ColorControlServer::moveToSaturationCommand(const app::ConcreteCommandPath 
     Attributes::RemainingTime::Set(endpoint, transitionTime);
 
     // kick off the state machine:
-    emberEventControlSetDelayMS(configureHSVEventControl(endpoint), UPDATE_TIME_MS);
+    DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Milliseconds32(UPDATE_TIME_MS), colorControlServerHueSatTransitionEventHandler,
+                                              reinterpret_cast<void *>(endpoint));
 
 exit:
     emberAfSendImmediateDefaultResponse(status);
@@ -1425,7 +1406,8 @@ bool ColorControlServer::stepSaturationCommand(const app::ConcreteCommandPath & 
     Attributes::RemainingTime::Set(endpoint, transitionTime);
 
     // kick off the state machine:
-    emberEventControlSetDelayMS(configureHSVEventControl(endpoint), UPDATE_TIME_MS);
+    DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Milliseconds32(UPDATE_TIME_MS), colorControlServerHueSatTransitionEventHandler,
+                                              reinterpret_cast<void *>(endpoint));
 
 exit:
     emberAfSendImmediateDefaultResponse(status);
@@ -1570,7 +1552,8 @@ void ColorControlServer::updateHueSatCommand(EndpointId endpoint)
     }
     else
     {
-        emberEventControlSetDelayMS(configureHSVEventControl(endpoint), UPDATE_TIME_MS);
+        DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Milliseconds32(UPDATE_TIME_MS), colorControlServerHueSatTransitionEventHandler,
+                                                  reinterpret_cast<void *>(endpoint));
     }
 
     if (colorHueTransitionState->isEnhancedHue)
@@ -1601,6 +1584,15 @@ void ColorControlServer::updateHueSatCommand(EndpointId endpoint)
 #endif // EMBER_AF_PLUGIN_COLOR_CONTROL_SERVER_HSV
 
 #ifdef EMBER_AF_PLUGIN_COLOR_CONTROL_SERVER_XY
+
+/**
+ * Wrapper for XY transition handler for use with Matter system layer timer
+ */
+
+static void colorControlServerXyTransitionEventHandler(System::Layer *, void * callbackContext)
+{
+    emberAfPluginColorControlServerXyTransitionEventHandler(static_cast<EndpointId>(reinterpret_cast<uintptr_t>(callbackContext)));
+}
 
 /**
  * @brief Returns Color16uTransitionState for X color associated to an endpoint
@@ -1663,22 +1655,6 @@ uint16_t ColorControlServer::findNewColorValueFromStep(uint16_t oldValue, int16_
     return newValue;
 }
 
-/**
- * @brief Configures EnventControl callback when using XY colors
- *
- * @param endpoint
- */
-EmberEventControl * ColorControlServer::configureXYEventControl(EndpointId endpoint)
-{
-    EmberEventControl * controller = getEventControl(endpoint);
-    VerifyOrReturnError(controller != nullptr, nullptr);
-
-    controller->endpoint = endpoint;
-    controller->callback = &emberAfPluginColorControlServerXyTransitionEventHandler;
-
-    return controller;
-}
-
 bool ColorControlServer::moveToColorCommand(const app::ConcreteCommandPath & commandPath,
                                             const Commands::MoveToColor::DecodableType & commandData)
 {
@@ -1735,7 +1711,8 @@ bool ColorControlServer::moveToColorCommand(const app::ConcreteCommandPath & com
     Attributes::RemainingTime::Set(endpoint, transitionTime);
 
     // kick off the state machine:
-    emberEventControlSetDelayMS(configureXYEventControl(endpoint), UPDATE_TIME_MS);
+    DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Milliseconds32(UPDATE_TIME_MS), colorControlServerXyTransitionEventHandler,
+                                              reinterpret_cast<void *>(endpoint));
 
 exit:
     emberAfSendImmediateDefaultResponse(status);
@@ -1828,7 +1805,8 @@ bool ColorControlServer::moveColorCommand(const app::ConcreteCommandPath & comma
     }
 
     // kick off the state machine:
-    emberEventControlSetDelayMS(configureXYEventControl(endpoint), UPDATE_TIME_MS);
+    DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Milliseconds32(UPDATE_TIME_MS), colorControlServerXyTransitionEventHandler,
+                                              reinterpret_cast<void *>(endpoint));
 
 exit:
     emberAfSendImmediateDefaultResponse(status);
@@ -1902,7 +1880,8 @@ bool ColorControlServer::stepColorCommand(const app::ConcreteCommandPath & comma
     Attributes::RemainingTime::Set(endpoint, transitionTime);
 
     // kick off the state machine:
-    emberEventControlSetDelayMS(configureXYEventControl(endpoint), UPDATE_TIME_MS);
+    DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Milliseconds32(UPDATE_TIME_MS), colorControlServerXyTransitionEventHandler,
+                                              reinterpret_cast<void *>(endpoint));
 
 exit:
     emberAfSendImmediateDefaultResponse(status);
@@ -1931,7 +1910,8 @@ void ColorControlServer::updateXYCommand(EndpointId endpoint)
     }
     else
     {
-        emberEventControlSetDelayMS(configureXYEventControl(endpoint), UPDATE_TIME_MS);
+        DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Milliseconds32(UPDATE_TIME_MS), colorControlServerXyTransitionEventHandler,
+                                                  reinterpret_cast<void *>(endpoint));
     }
 
     // update the attributes
@@ -1947,6 +1927,16 @@ void ColorControlServer::updateXYCommand(EndpointId endpoint)
 #endif // EMBER_AF_PLUGIN_COLOR_CONTROL_SERVER_XY
 
 #ifdef EMBER_AF_PLUGIN_COLOR_CONTROL_SERVER_TEMP
+
+/**
+ * Wrapper for Color Temperature transition handler for use with Matter system layer timer
+ */
+
+static void colorControlServerTempTransitionEventHandler(System::Layer *, void * callbackContext)
+{
+    emberAfPluginColorControlServerTempTransitionEventHandler(static_cast<EndpointId>(reinterpret_cast<uintptr_t>(callbackContext)));
+}
+
 /**
  * @brief Get the Temp Transition State object associated to the endpoint
  *
@@ -2019,7 +2009,9 @@ EmberAfStatus ColorControlServer::moveToColorTemp(EndpointId aEndpoint, uint16_t
     colorTempTransitionState->highLimit      = temperatureMax;
 
     // kick off the state machine
-    emberEventControlSetDelayMS(configureTempEventControl(endpoint), UPDATE_TIME_MS);
+    DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Milliseconds32(UPDATE_TIME_MS), colorControlServerTempTransitionEventHandler,
+                                              reinterpret_cast<void *>(endpoint));
+
     return EMBER_ZCL_STATUS_SUCCESS;
 }
 
@@ -2043,22 +2035,6 @@ uint16_t ColorControlServer::getTemperatureCoupleToLevelMin(EndpointId endpoint)
     }
 
     return colorTemperatureCoupleToLevelMin;
-}
-
-/**
- * @brief Configures EnventControl callback when using Temp colors
- *
- * @param endpoint
- */
-EmberEventControl * ColorControlServer::configureTempEventControl(EndpointId endpoint)
-{
-    EmberEventControl * controller = getEventControl(endpoint);
-    VerifyOrReturnError(controller != nullptr, nullptr);
-
-    controller->endpoint = endpoint;
-    controller->callback = &emberAfPluginColorControlServerTempTransitionEventHandler;
-
-    return controller;
 }
 
 void ColorControlServer::startUpColorTempCommand(EndpointId endpoint)
@@ -2131,7 +2107,8 @@ void ColorControlServer::updateTempCommand(EndpointId endpoint)
     }
     else
     {
-        emberEventControlSetDelayMS(configureTempEventControl(endpoint), UPDATE_TIME_MS);
+        DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Milliseconds32(UPDATE_TIME_MS), colorControlServerTempTransitionEventHandler,
+                                                  reinterpret_cast<void *>(endpoint));
     }
 
     Attributes::ColorTemperature::Set(endpoint, colorTempTransitionState->currentValue);
@@ -2244,7 +2221,9 @@ bool ColorControlServer::moveColorTempCommand(const app::ConcreteCommandPath & c
     Attributes::RemainingTime::Set(endpoint, transitionTime);
 
     // kick off the state machine:
-    emberEventControlSetDelayMS(configureTempEventControl(endpoint), UPDATE_TIME_MS);
+    DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Milliseconds32(UPDATE_TIME_MS), colorControlServerTempTransitionEventHandler,
+                                              reinterpret_cast<void *>(endpoint));
+
 
 exit:
     emberAfSendImmediateDefaultResponse(status);
@@ -2364,7 +2343,8 @@ bool ColorControlServer::stepColorTempCommand(const app::ConcreteCommandPath & c
     Attributes::RemainingTime::Set(endpoint, transitionTime);
 
     // kick off the state machine:
-    emberEventControlSetDelayMS(configureTempEventControl(endpoint), UPDATE_TIME_MS);
+    DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Milliseconds32(UPDATE_TIME_MS), colorControlServerTempTransitionEventHandler,
+                                              reinterpret_cast<void *>(endpoint));
 
 exit:
     emberAfSendImmediateDefaultResponse(status);
@@ -2596,7 +2576,7 @@ bool emberAfColorControlClusterStepColorTemperatureCallback(app::CommandHandler 
     return ColorControlServer::Instance().stepColorTempCommand(commandPath, commandData);
 }
 
-void emberAfPluginLevelControlCoupledColorTempChangeCallback(EndpointId endpoint)
+void colorControlCoupledColorTempChangeCallback(EndpointId endpoint)
 {
     ColorControlServer::Instance().levelControlColorTempChangeCommand(endpoint);
 }

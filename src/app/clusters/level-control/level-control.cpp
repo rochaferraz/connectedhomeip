@@ -170,7 +170,7 @@ static void reallyUpdateCoupledColorTemp(EndpointId endpoint)
     {
         if (READBITS(options, EMBER_ZCL_LEVEL_CONTROL_OPTIONS_COUPLE_COLOR_TEMP_TO_LEVEL))
         {
-            emberAfPluginLevelControlCoupledColorTempChangeCallback(endpoint);
+            colorControlCoupledColorTempChangeCallback(endpoint);
         }
     }
 }
