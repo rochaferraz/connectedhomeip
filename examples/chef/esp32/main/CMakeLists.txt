@@ -20,11 +20,6 @@ get_filename_component(CHIP_ROOT ../third_party/connectedhomeip REALPATH)
 get_filename_component(CHEF ${CMAKE_CURRENT_SOURCE_DIR}/../../ REALPATH)
 get_filename_component(GEN_DIR ${CHEF}/out/${SAMPLE_NAME}/zap-generated REALPATH)
 
-# include(${CMAKE_CURRENT_LIST_DIR}/../../project_include.cmake)
-
-# message(STATUS "Product ID " ${CONFIG_DEVICE_PRODUCT_ID})
-# message(STATUS "Vendor ID " ${CONFIG_DEVICE_VENDOR_ID})
-
 set(CHIP_SHELL_DIR "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/examples/shell")
 
 set(PRIV_INCLUDE_DIRS_LIST
@@ -38,7 +33,6 @@ set(PRIV_INCLUDE_DIRS_LIST
 )
 
 
-# find_package(Python3 REQUIRED)
 set(ZAP_FILE ${CMAKE_CURRENT_LIST_DIR}/../../devices/${SAMPLE_NAME}.zap)
 execute_process(
   COMMAND ${Python3_EXECUTABLE} ${CHIP_ROOT}/src/app/zap_cluster_list.py --zap_file ${ZAP_FILE}
@@ -46,9 +40,6 @@ execute_process(
   ERROR_VARIABLE ERROR_MESSAGE
   RESULT_VARIABLE RC
 )
-# if (NOT RC EQUAL 0)
-#   message(FATAL_ERROR "Failed to execute zap_cluster_list.py: ${ERROR_MESSAGE}")
-# endif()
 
 message(STATUS "** Start of Cluster List **")
 string(REPLACE "\n" ";" CLUSTER_LIST "${CLUSTER_LIST}")
@@ -81,18 +72,18 @@ endif()
 if (CONFIG_ENABLE_PW_RPC)
 # Append additional directories for RPC build
 set(PRIV_INCLUDE_DIRS_LIST  "${PRIV_INCLUDE_DIRS_LIST}"
-                     "${CMAKE_SOURCE_DIR}/../../platform/esp32/pw_sys_io/public"
-                     "${CMAKE_SOURCE_DIR}/../../common"
-                     "${CMAKE_SOURCE_DIR}/../../common/pigweed"
-                     "${CMAKE_SOURCE_DIR}/../../common/pigweed/esp32"
-                     "${CMAKE_SOURCE_DIR}/../../common/screen-framework/include/"
-                     "${CMAKE_SOURCE_DIR}/../../../src/lib/support"
+                     "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/examples/platform/esp32/pw_sys_io/public"
+                     "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/examples/common"
+                     "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/examples/common/pigweed"
+                     "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/examples/common/pigweed/esp32"
+                     "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/examples/common/screen-framework/include/"
+                     "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/src/lib/support"
                      "${IDF_PATH}/components/freertos/include/freertos"
 )
 set(SRC_DIRS_LIST  "${SRC_DIRS_LIST}"
-                     "${CMAKE_SOURCE_DIR}/../../platform/esp32"
-                     "${CMAKE_SOURCE_DIR}/../../common/pigweed"
-                     "${CMAKE_SOURCE_DIR}/../../common/pigweed/esp32"
+                     "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/examples/platform/esp32"
+                     "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/examples/common/pigweed"
+                     "${CMAKE_SOURCE_DIR}/third_party/connectedhomeip/examples/common/pigweed/esp32"
 )
 else()
 set(SRC_DIRS_LIST
