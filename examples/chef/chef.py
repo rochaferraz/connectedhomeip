@@ -361,9 +361,6 @@ def main() -> int:
                 flush_print(
                     f"{device_name} in CICD config but not {_DEVICE_FOLDER}!")
                 exit(1)
-            if options.build_target == "nrfconnect":
-                shell.run_cmd(
-                    "export GNUARMEMB_TOOLCHAIN_PATH=\"$PW_ARM_CIPD_INSTALL_DIR\"")
             shell.run_cmd(f"cd {_CHEF_SCRIPT_PATH}")
             command = f"./chef.py -cbr --use_zzz -d {device_name} -t {options.build_target}"
             flush_print(f"Building {command}", with_border=True)
@@ -646,6 +643,8 @@ def main() -> int:
                 f"cp build/$(git rev-parse HEAD)-{options.sample_device_type_name}.tar.xz {_CHEF_SCRIPT_PATH}")
         elif options.build_target == "nrfconnect":
             shell.run_cmd(f"cd {_CHEF_SCRIPT_PATH}/nrfconnect")
+            shell.run_cmd(
+                'if [[ -z "$GNUARMEMB_TOOLCHAIN_PATH" ]]; then export GNUARMEMB_TOOLCHAIN_PATH="$PW_ARM_CIPD_INSTALL_DIR"; fi')
             nrf_build_cmds = ["west build -b nrf52840dk_nrf52840"]
             if options.do_clean:
                 nrf_build_cmds.append("-p always")
