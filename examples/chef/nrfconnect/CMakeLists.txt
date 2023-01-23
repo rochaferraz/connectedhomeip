@@ -18,13 +18,32 @@ cmake_minimum_required(VERSION 3.13.1)
 get_filename_component(CHIP_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/connectedhomeip REALPATH)
 get_filename_component(NRFCONNECT_COMMON ${CHIP_ROOT}/examples/platform/nrfconnect REALPATH)
 get_filename_component(CHEF ${CMAKE_CURRENT_SOURCE_DIR}/../ REALPATH)
+get_filename_component(GEN_DIR_ZZZ ${CHIP_ROOT}/zzz_generated/ REALPATH)
+get_filename_component(LIGHTING_COMMON ${CHIP_ROOT}/examples/lighting-app/lighting-common REALPATH)
+get_filename_component(GEN_DIR ${CHIP_ROOT}/zzz_generated/ REALPATH)
 
 include(${CHIP_ROOT}/config/nrfconnect/app/check-nrfconnect-version.cmake)
+
+# Set Kconfig root files that will be processed as a first Kconfig for used child images.
+set(mcuboot_KCONFIG_ROOT ${CHIP_ROOT}/config/nrfconnect/chip-module/Kconfig.mcuboot.root)
+set(multiprotocol_rpmsg_KCONFIG_ROOT ${CHIP_ROOT}/config/nrfconnect/chip-module/Kconfig.multiprotocol_rpmsg.root)
+set(hci_rpmsg_KCONFIG_ROOT ${CHIP_ROOT}/config/nrfconnect/chip-module/Kconfig.hci_rpmsg.root)
+
+list(APPEND ZEPHYR_EXTRA_MODULES ${CHIP_ROOT}/config/nrfconnect/chip-module)
+#set(PM_STATIC_YML_FILE ${CMAKE_CURRENT_SOURCE_DIR}/configuration/${BOARD}/pm_static_dfu.yml)
+if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/boards/${BOARD}.conf)
+  list(APPEND CONF_FILE boards/${BOARD}.conf)
+endif()
+
+find_package(Zephyr HINTS $ENV{ZEPHYR_BASE})
+
+project(chip-nrfconnect-chef-example)
+
 include(${CHEF}/project_include.cmake)
 
 get_filename_component(GEN_DIR ${CHEF}/out/${SAMPLE_NAME}/zap-generated REALPATH)
 
-set(CONF_FILE prj.conf)
+#set(CONF_FILE prj.conf)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CHIP_CFLAGS "${CHIP_CFLAGS} -DCHIP_DEVICE_CONFIG_DEVICE_PRODUCT_ID=${CONFIG_DEVICE_PRODUCT_ID}")
@@ -37,21 +56,13 @@ message(STATUS "Product ID " ${CONFIG_DEVICE_PRODUCT_ID})
 message(STATUS "Vendor ID " ${CONFIG_DEVICE_VENDOR_ID})
 message(STATUS "SW Version String" ${CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION_STRING})
 
-# Set Kconfig root files that will be processed as a first Kconfig for used child images.
-set(mcuboot_KCONFIG_ROOT ${CHIP_ROOT}/config/nrfconnect/chip-module/Kconfig.mcuboot.root)
-set(multiprotocol_rpmsg_KCONFIG_ROOT ${CHIP_ROOT}/config/nrfconnect/chip-module/Kconfig.multiprotocol_rpmsg.root)
 
 list(APPEND ZEPHYR_EXTRA_MODULES ${CHIP_ROOT}/config/nrfconnect/chip-module)
 
-if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/boards/${BOARD}.conf)
-  list(APPEND CONF_FILE boards/${BOARD}.conf)
-endif()
 
-find_package(Zephyr HINTS $ENV{ZEPHYR_BASE})
-
-project(chip-nrfconnect-chef-example)
 
 include(${CHIP_ROOT}/config/nrfconnect/app/enable-gnu-std.cmake)
+include(${CHIP_ROOT}/config/nrfconnect/app/flashing.cmake)
 include(${CHIP_ROOT}/src/app/chip_data_model.cmake)
 
 # -Wmaybe-uninitialized has too many false positives, including on std::optional
@@ -62,8 +73,8 @@ target_compile_options(app PRIVATE -Werror -Wno-error=maybe-uninitialized)
 
 target_include_directories(app PRIVATE
                            ${CMAKE_CURRENT_SOURCE_DIR}
-                           ${CMAKE_CURRENT_SOURCE_DIR}/third_party/connectedhomeip/zzz_generated/app-common
                            ${GEN_DIR}
+                           ${GEN_DIR_ZZZ}/app-common
                            ${CHEF}
                            ${GEN_DIR}/../
                            ${CHIP_ROOT}/src
@@ -92,9 +103,8 @@ message(STATUS ${CHEF}/devices/${SAMPLE_NAME}.zap)
 chip_configure_data_model(app
     INCLUDE_SERVER
     ZAP_FILE ${CHEF}/devices/${SAMPLE_NAME}.zap
+    GEN_DIR ${GEN_DIR}
 )
-
-include(${CHIP_ROOT}/config/nrfconnect/app/flashing.cmake)
 
 
 if (CONFIG_ENABLE_PW_RPC)
@@ -192,11 +202,9 @@ target_sources(app PRIVATE
 )
 
 target_include_directories(app PRIVATE
-  ${PIGWEED_ROOT}/pw_sys_io/public
   ${CHIP_ROOT}/src/lib/support
   ${CHIP_ROOT}/src/system
   ${NRFCONNECT_COMMON}
-  ${NRFCONNECT_COMMON}/util/include
   ../../common
   ../../common/pigweed
   ../../common/pigweed/nrfconnect)

@@ -1,6 +1,7 @@
 /*
  *
  *    Copyright (c) 2020 Project CHIP Authors
+ *    All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -34,6 +35,7 @@
 #include <credentials/examples/DeviceAttestationCredsExample.h>
 
 #include <zephyr/logging/log.h>
+#include <DeviceInfoProviderImpl.h>
 
 #if CONFIG_CHIP_LIB_SHELL
 #include <ChipShellCollection.h>
@@ -59,7 +61,7 @@ int main()
 
 #ifdef CONFIG_ENABLE_PW_RPC
     rpc::Init();
-#endif
+#endif /* CONFIG_ENABLE_PW_RPC */
 
     err = chip::Platform::MemoryInit();
     if (err != CHIP_NO_ERROR)
@@ -76,11 +78,7 @@ int main()
     }
 
     // Network connectivity
-#if CHIP_DEVICE_CONFIG_ENABLE_WPA
-    ConnectivityManagerImpl().StartWiFiManagement();
-#endif
-
-#if defined(CHIP_ENABLE_OPENTHREAD)
+#if defined(CONFIG_NET_L2_OPENTHREAD)
     err = ThreadStackMgr().InitThreadStack();
     if (err != CHIP_NO_ERROR)
     {
@@ -92,20 +90,25 @@ int main()
     err = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_MinimalEndDevice);
 #else
     err = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_Router);
-#endif
+#endif /* CONFIG_OPENTHREAD_MTD */
+
     if (err != CHIP_NO_ERROR)
     {
         ChipLogError(AppServer, "ConnectivityMgr().SetThreadDeviceType() failed");
         return 1;
     }
-#elif !defined(CONFIG_WIFI_NRF700X)
-    return CHIP_ERROR_INTERNAL;
-#endif
+#endif /* CONFIG_NET_L2_OPENTHREAD*/
+
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFI_AP
+    ChipLogError(AppServer, "INIT WIFI");
+    ConnectivityManagerImpl().StartWiFiManagement();    
+    //sWiFiCommissioningInstance.Init();
+#endif /* CHIP_DEVICE_CONFIG_ENABLE_WIFI_AP */
 
     // Device Attestation & Onboarding codes
     chip::Credentials::SetDeviceAttestationCredentialsProvider(chip::Credentials::Examples::GetExampleDACProvider());
 #if CHIP_DEVICE_CONFIG_ENABLE_EXTENDED_DISCOVERY
-    chip::app::DnssdServer::Instance().SetExtendedDiscoveryTimeoutSecs(kExtDiscoveryTimeoutSecs);
+    //chip::app::DnssdServer::Instance().SetExtendedDiscoveryTimeoutSecs(kExtDiscoveryTimeoutSecs);
 #endif /* CHIP_DEVICE_CONFIG_ENABLE_EXTENDED_DISCOVERY */
 
     // Start IM server
@@ -117,14 +120,11 @@ int main()
         return 1;
     }
 
+    static chip::DeviceLayer::DeviceInfoProviderImpl gExampleDeviceInfoProvider;
+    chip::DeviceLayer::SetDeviceInfoProvider(&gExampleDeviceInfoProvider);
+
+
     chip::DeviceLayer::ConfigurationMgr().LogDeviceConfig();
-
-    err = chip::DeviceLayer::PlatformMgr().StartEventLoopTask();
-    if (err != CHIP_NO_ERROR)
-    {
-        ChipLogError(AppServer, "PlatformMgr().StartEventLoopTask() failed");
-    }
-
     // When SoftAP support becomes available, it should be added here.
 #if CONFIG_NETWORK_LAYER_BLE
     PrintOnboardingCodes(chip::RendezvousInformationFlag(chip::RendezvousInformationFlag::kBLE));
@@ -132,10 +132,18 @@ int main()
     PrintOnboardingCodes(chip::RendezvousInformationFlag(chip::RendezvousInformationFlag::kOnNetwork));
 #endif /* CONFIG_NETWORK_LAYER_BLE */
 
-    // Starts commissioning window automatically. Starts BLE advertising when BLE enabled
-    if (chip::Server::GetInstance().GetCommissioningWindowManager().OpenBasicCommissioningWindow() != CHIP_NO_ERROR)
+    err = chip::DeviceLayer::PlatformMgr().StartEventLoopTask();
+    if (err != CHIP_NO_ERROR)
     {
-        ChipLogError(AppServer, "OpenBasicCommissioningWindow() failed");
+        ChipLogError(AppServer, "PlatformMgr().StartEventLoopTask() failed");
+    }
+
+    if (!ConnectivityMgr().IsBLEAdvertisingEnabled()) {
+        // Starts commissioning window automatically. Starts BLE advertising when BLE enabled
+        if (chip::Server::GetInstance().GetCommissioningWindowManager().OpenBasicCommissioningWindow() != CHIP_NO_ERROR)
+        {
+            ChipLogError(AppServer, "OpenBasicCommissioningWindow() failed");
+        }
     }
 
 #if CONFIG_CHIP_LIB_SHELL
