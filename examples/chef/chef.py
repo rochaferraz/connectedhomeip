@@ -75,6 +75,8 @@ def load_config() -> None:
                     "for the vendor's SDK")
         configStream = open(configFile, 'w')
         config["nrfconnect"]["ZEPHYR_BASE"] = os.environ.get('ZEPHYR_BASE')
+        config["nrfconnect"]["GNUARMEMB_TOOLCHAIN_PATH"] = os.environ.get(
+            'GNUARMEMB_TOOLCHAIN_PATH')
         config["nrfconnect"]["TTY"] = None
         config["esp32"]["IDF_PATH"] = os.environ.get('IDF_PATH')
         config["esp32"]["TTY"] = None
@@ -374,9 +376,6 @@ def main() -> int:
                 flush_print(
                     f"{device_name} in CICD config but not {_DEVICE_FOLDER}!")
                 exit(1)
-            if options.build_target == "nrfconnect":
-                shell.run_cmd(
-                    "export GNUARMEMB_TOOLCHAIN_PATH=\"$PW_ARM_CIPD_INSTALL_DIR\"")
             shell.run_cmd(f"cd {_CHEF_SCRIPT_PATH}")
             command = f"./chef.py -cbr -d {device_name} -t {options.build_target}"
             flush_print(f"Building {command}", with_border=True)
@@ -412,8 +411,6 @@ def main() -> int:
                     command += " ".join(args)
                     flush_print(f"Building {command}", with_border=True)
                     shell.run_cmd(f"cd {_CHEF_SCRIPT_PATH}")
-                    shell.run_cmd(
-                        "export GNUARMEMB_TOOLCHAIN_PATH=\"$PW_ARM_CIPD_INSTALL_DIR\"")
                     try:
                         shell.run_cmd(command)
                     except RuntimeError as build_fail_error:
@@ -471,9 +468,16 @@ def main() -> int:
             flush_print(
                 'Path for nrfconnect SDK was not found. Make sure nrfconnect.ZEPHYR_BASE is set on your config.yaml file')
             exit(1)
+        if ('GNUARMEMB_TOOLCHAIN_PATH' not in config['nrfconnect'] or (config['nrfconnect']['GNUARMEMB_TOOLCHAIN_PATH'] is None)):
+            flush_print(
+                'Path for nrfconnect GNU ARM toolchain was not found. Make sure nrfconnect.GNUARMEMB_TOOLCHAIN_PATH is set on your config.yaml file')
+            exit(1)
         shell.run_cmd(
             f'source {config["nrfconnect"]["ZEPHYR_BASE"]}/zephyr-env.sh')
         shell.run_cmd("export ZEPHYR_TOOLCHAIN_VARIANT=gnuarmemb")
+        shell.run_cmd(
+            f'export GNUARMEMB_TOOLCHAIN_PATH={config["nrfconnect"]["GNUARMEMB_TOOLCHAIN_PATH"]}')
+
     elif options.build_target == "linux":
         pass
     elif options.build_target == "silabs-thread":

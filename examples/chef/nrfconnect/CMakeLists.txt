@@ -46,6 +46,7 @@ set(mcuboot_KCONFIG_ROOT ${CHIP_ROOT}/config/nrfconnect/chip-module/Kconfig.mcub
 set(multiprotocol_rpmsg_KCONFIG_ROOT ${CHIP_ROOT}/config/nrfconnect/chip-module/Kconfig.multiprotocol_rpmsg.root)
 
 list(APPEND ZEPHYR_EXTRA_MODULES ${CHIP_ROOT}/config/nrfconnect/chip-module)
+find_package(Zephyr HINTS $ENV{ZEPHYR_BASE})
 
 if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/boards/${BOARD}.conf)
   list(APPEND CONF_FILE boards/${BOARD}.conf)
@@ -76,7 +77,7 @@ target_include_directories(app PRIVATE
                            ${NRFCONNECT_COMMON}/app/include
 )
 
-if (CONFIG_ENABLE_CHIP_SHELL)
+if (CONFIG_CHIP_LIB_SHELL)
   target_sources(app PRIVATE
     ${CHEF}/shell_common/globals.cpp
     ${CHEF}/shell_common/cmd_misc.cpp
@@ -86,7 +87,7 @@ if (CONFIG_ENABLE_CHIP_SHELL)
   target_include_directories(app PRIVATE
     ${CHEF}/shell_common/include
   )
-endif (CONFIG_ENABLE_CHIP_SHELL)
+endif (CONFIG_CHIP_LIB_SHELL)
 
 target_sources(app PRIVATE
     ${CHEF}/nrfconnect/main.cpp
