@@ -75,6 +75,8 @@ def load_config() -> None:
                     "for the vendor's SDK")
         configStream = open(configFile, 'w')
         config["nrfconnect"]["ZEPHYR_BASE"] = os.environ.get('ZEPHYR_BASE')
+        config["nrfconnect"]["ZEPHYR_SDK_INSTALL_DIR"] = os.environ.get(
+            'ZEPHYR_SDK_INSTALL_DIR')
         config["nrfconnect"]["TTY"] = None
         config["esp32"]["IDF_PATH"] = os.environ.get('IDF_PATH')
         config["esp32"]["TTY"] = None
@@ -374,9 +376,6 @@ def main() -> int:
                 flush_print(
                     f"{device_name} in CICD config but not {_DEVICE_FOLDER}!")
                 exit(1)
-            if options.build_target == "nrfconnect":
-                shell.run_cmd(
-                    "export GNUARMEMB_TOOLCHAIN_PATH=\"$PW_ARM_CIPD_INSTALL_DIR\"")
             shell.run_cmd(f"cd {_CHEF_SCRIPT_PATH}")
             command = f"./chef.py -cbr -d {device_name} -t {options.build_target}"
             flush_print(f"Building {command}", with_border=True)
@@ -412,8 +411,6 @@ def main() -> int:
                     command += " ".join(args)
                     flush_print(f"Building {command}", with_border=True)
                     shell.run_cmd(f"cd {_CHEF_SCRIPT_PATH}")
-                    shell.run_cmd(
-                        "export GNUARMEMB_TOOLCHAIN_PATH=\"$PW_ARM_CIPD_INSTALL_DIR\"")
                     try:
                         shell.run_cmd(command)
                     except RuntimeError as build_fail_error:
@@ -469,11 +466,24 @@ def main() -> int:
     elif options.build_target == "nrfconnect":
         if config['nrfconnect']['ZEPHYR_BASE'] is None:
             flush_print(
-                'Path for nrfconnect SDK was not found. Make sure nrfconnect.ZEPHYR_BASE is set on your config.yaml file')
+                'The path for nrfconnect SDK was not found. Make sure nrfconnect.ZEPHYR_BASE is set on your config.yaml file. This is typically <NCS INSTALL PATH>/ncs/vX.X.X/zephyr')
+            exit(1)
+        if config['nrfconnect']['ZEPHYR_SDK_INSTALL_DIR'] is None:
+            flush_print(
+                'The path for nrfconnect toolchain was not found. Make sure nrfconnect.ZEPHYR_SDK_INSTALL_DIR is set on your config.yaml file. This is typically <NCS INSTALL PATH>/ncs/toolchains/vX.X.X/opt/zephyr-sdk')
             exit(1)
         shell.run_cmd(
             f'source {config["nrfconnect"]["ZEPHYR_BASE"]}/zephyr-env.sh')
         shell.run_cmd("export ZEPHYR_TOOLCHAIN_VARIANT=gnuarmemb")
+        shell.run_cmd(
+            f"export ZEPHYR_BASE={config['nrfconnect']['ZEPHYR_BASE']}")
+        shell.run_cmd(
+            f"export ZEPHYR_SDK_INSTALL_DIR={config['nrfconnect']['ZEPHYR_SDK_INSTALL_DIR']}")
+        shell.run_cmd(
+            "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ZEPHYR_SDK_INSTALL_DIR/../../usr/lib")
+        shell.run_cmd(
+            "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ZEPHYR_SDK_INSTALL_DIR/../../usr/local/lib")
+
     elif options.build_target == "linux":
         pass
     elif options.build_target == "silabs-thread":
