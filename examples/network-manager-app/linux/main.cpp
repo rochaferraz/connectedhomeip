@@ -23,6 +23,11 @@
 #include <lib/support/CodeUtils.h>
 #include <lib/support/Span.h>
 
+#ifndef ChipLogFormatByteSpan
+#define ChipLogFormatByteSpan "%.*s"
+#define ChipLogValueByteSpan(span) static_cast<int>((span).size()), reinterpret_cast<const char *>((span).data())
+#endif
+
 #if MATTER_ENABLE_UBUS
 #include "ThreadBROpenThreadUbus.h"
 #include "UbusManager.h"
@@ -51,11 +56,25 @@ void emberAfThreadNetworkDirectoryClusterInitCallback(EndpointId endpoint)
     TEMPORARY_RETURN_IGNORED gThreadNetworkDirectoryServer.emplace(endpoint).Init();
 }
 
+class WiFiNetworkManagementDelegateImpl : public WiFiNetworkManagementDelegate
+{
+public:
+    void OnNetworkCredentialsChanged(ByteSpan ssid, ByteSpan passphrase) override
+    {
+        ChipLogProgress(AppServer, "Wi-Fi credentials changed: SSID=" ChipLogFormatByteSpan ", Passphrase=" ChipLogFormatByteSpan,
+                        ChipLogValueByteSpan(ssid), ChipLogValueByteSpan(passphrase));
+    }
+
+    void OnNetworkCredentialsCleared() override { ChipLogProgress(AppServer, "Wi-Fi credentials cleared"); }
+};
+
+WiFiNetworkManagementDelegateImpl gWiFiNetworkManagementDelegate;
+
 std::optional<WiFiNetworkManagementServer> gWiFiNetworkManagementServer;
 void emberAfWiFiNetworkManagementClusterInitCallback(EndpointId endpoint)
 {
     VerifyOrDie(!gWiFiNetworkManagementServer);
-    TEMPORARY_RETURN_IGNORED gWiFiNetworkManagementServer.emplace(endpoint).Init();
+    TEMPORARY_RETURN_IGNORED gWiFiNetworkManagementServer.emplace(endpoint, gWiFiNetworkManagementDelegate).Init();
 }
 
 std::optional<ThreadBorderRouterManagement::ServerInstance> gThreadBorderRouterManagementServer;
