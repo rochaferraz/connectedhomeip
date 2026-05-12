@@ -15,6 +15,9 @@
  */
 
 #include <app/clusters/wifi-network-management-server/WiFiNetworkManagementCluster.h>
+#include <app/data-model/Nullable.h>
+#include <lib/core/DataModelTypes.h>
+#include <lib/support/Span.h>
 #include <lib/support/tests/ExtraPwTestMacros.h>
 #include <pw_unit_test/framework.h>
 
@@ -33,7 +36,32 @@ using namespace chip::app::Clusters::WiFiNetworkManagement::Attributes;
 using namespace chip::Protocols::InteractionModel;
 using namespace chip::Testing;
 
+namespace WiFiNetworkManagement = chip::app::Clusters::WiFiNetworkManagement;
+namespace Attributes           = chip::app::Clusters::WiFiNetworkManagement::Attributes;
+namespace Commands             = chip::app::Clusters::WiFiNetworkManagement::Commands;
+namespace Globals              = chip::app::Clusters::Globals;
+
 namespace {
+
+class WiFiNetworkManagementDelegateImpl : public WiFiNetworkManagementDelegate
+{
+public:
+    int credentialsChangedCalls = 0;
+    int credentialsClearedCalls = 0;
+    ByteSpan lastSsid;
+    ByteSpan lastPassphrase;
+
+    void OnNetworkCredentialsChanged(ByteSpan ssid, ByteSpan passphrase) override
+    {
+        credentialsChangedCalls++;
+        lastSsid = ssid;
+        lastPassphrase = passphrase;
+    }
+    void OnNetworkCredentialsCleared() override
+    {
+        credentialsClearedCalls++;
+    }
+};
 
 struct TestWiFiNetworkManagementCluster : public ::testing::Test
 {
@@ -45,12 +73,13 @@ struct TestWiFiNetworkManagementCluster : public ::testing::Test
 
     void TearDown() override { cluster.Shutdown(ClusterShutdownType::kClusterShutdown); }
 
-    TestWiFiNetworkManagementCluster() : cluster(kTestEndpointId), tester(cluster) {}
+    TestWiFiNetworkManagementCluster() : cluster(kTestEndpointId, { delegate }), tester(cluster) {}
 
     static constexpr EndpointId kTestEndpointId = 1;
 
+    WiFiNetworkManagementDelegateImpl delegate;
     WiFiNetworkManagementCluster cluster;
-    ClusterTester tester;
+    chip::Testing::ClusterTester tester;
 };
 
 } // namespace
@@ -100,6 +129,10 @@ TEST_F(TestWiFiNetworkManagementCluster, SetNetworkCredentials)
     EXPECT_TRUE(cluster.Ssid().data_equal(ByteSpan(ssidData)));
     EXPECT_TRUE(cluster.Passphrase().data_equal(ByteSpan(passphraseData)));
 
+    EXPECT_EQ(delegate.credentialsChangedCalls, 1);
+    EXPECT_TRUE(delegate.lastSsid.data_equal(ByteSpan(ssidData)));
+    EXPECT_TRUE(delegate.lastPassphrase.data_equal(ByteSpan(passphraseData)));
+
     DataModel::Nullable<ByteSpan> ssid;
     ASSERT_EQ(tester.ReadAttribute(Ssid::Id, ssid), CHIP_NO_ERROR);
     ASSERT_FALSE(ssid.IsNull());
@@ -133,6 +166,8 @@ TEST_F(TestWiFiNetworkManagementCluster, ClearNetworkCredentials)
     // Clear credentials
     tester.GetDirtyList().clear();
     ASSERT_EQ(cluster.ClearNetworkCredentials(), CHIP_NO_ERROR);
+
+    EXPECT_EQ(delegate.credentialsClearedCalls, 1);
 
     EXPECT_FALSE(cluster.HasNetworkCredentials());
     EXPECT_TRUE(cluster.Ssid().empty());

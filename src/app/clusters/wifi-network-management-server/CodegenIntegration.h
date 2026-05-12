@@ -38,7 +38,9 @@ namespace chip::app::Clusters {
 class WiFiNetworkManagementServer : public WiFiNetworkManagementCluster
 {
 public:
-    using WiFiNetworkManagementCluster::WiFiNetworkManagementCluster;
+    WiFiNetworkManagementServer(EndpointId endpoint, WiFiNetworkManagementDelegate & delegate) :
+        WiFiNetworkManagementCluster(endpoint, { delegate })
+    {}
 
     ~WiFiNetworkManagementServer();
 

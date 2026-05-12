@@ -68,6 +68,9 @@ CHIP_ERROR WiFiNetworkManagementCluster::ClearNetworkCredentials()
 
     NotifyAttributeChanged(Ssid::Id);
     NotifyAttributeChanged(PassphraseSurrogate::Id);
+
+    mContext.delegate.OnNetworkCredentialsCleared();
+
     return CHIP_NO_ERROR;
 }
 
@@ -99,6 +102,9 @@ CHIP_ERROR WiFiNetworkManagementCluster::SetNetworkCredentials(ByteSpan ssid, By
         }
         NotifyAttributeChanged(PassphraseSurrogate::Id);
     }
+
+    mContext.delegate.OnNetworkCredentialsChanged(ssid, passphrase);
+
     return CHIP_NO_ERROR;
 }
 

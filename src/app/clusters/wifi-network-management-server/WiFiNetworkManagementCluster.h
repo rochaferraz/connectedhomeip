@@ -27,10 +27,19 @@
 
 namespace chip::app::Clusters {
 
+class WiFiNetworkManagementDelegate;
+
 class WiFiNetworkManagementCluster : public DefaultServerCluster
 {
 public:
-    WiFiNetworkManagementCluster(EndpointId endpoint) : DefaultServerCluster({ endpoint, WiFiNetworkManagement::Id }) {}
+    struct Context
+    {
+        WiFiNetworkManagementDelegate & delegate;
+    };
+
+    WiFiNetworkManagementCluster(EndpointId endpoint, const Context & context) :
+        DefaultServerCluster({ endpoint, WiFiNetworkManagement::Id }), mContext(context)
+    {}
 
     WiFiNetworkManagementCluster(WiFiNetworkManagementCluster const &)             = delete;
     WiFiNetworkManagementCluster & operator=(WiFiNetworkManagementCluster const &) = delete;
@@ -64,9 +73,32 @@ public:
     CHIP_ERROR GeneratedCommands(const ConcreteClusterPath & path, ReadOnlyBufferBuilder<CommandId> & builder) override;
 
 private:
+    Context mContext;
     FixedByteBuffer<32, uint8_t> mSsid;
     uint64_t mPassphraseSurrogate = 0;
     Crypto::SensitiveDataBuffer<64> mPassphrase;
+};
+
+/** @brief
+ *  Defines methods for implementing application-specific logic for the WiFiNetworkManagement Cluster.
+ */
+class WiFiNetworkManagementDelegate
+{
+public:
+    WiFiNetworkManagementDelegate()          = default;
+    virtual ~WiFiNetworkManagementDelegate() = default;
+
+    /**
+     * @brief Delegate should implement a handler to be notified when the network credentials are changed.
+     * @param ssid the SSID of the Wi-Fi network
+     * @param passphrase the passphrase for the Wi-Fi network
+     */
+    virtual void OnNetworkCredentialsChanged(chip::ByteSpan ssid, chip::ByteSpan passphrase) = 0;
+
+    /**
+     * @brief Delegate should implement a handler to be notified when the network credentials are cleared.
+     */
+    virtual void OnNetworkCredentialsCleared() = 0;
 };
 
 } // namespace chip::app::Clusters
